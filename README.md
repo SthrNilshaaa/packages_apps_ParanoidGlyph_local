@@ -6,3 +6,4 @@ To build Paranoid Glyph you have to build the package in your device tree.
         ParanoidGlyph
 ```
 # packages_apps_ParanoidGlyph_personal
+# packages_apps_ParanoidGlyph_personal
