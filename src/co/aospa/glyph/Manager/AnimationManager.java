@@ -1,0 +1,1022 @@
+/*
+ * Copyright (C) 2022-2024 Paranoid Android
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package co.aospa.glyph.Manager;
+
+import android.content.Context;
+import android.media.AudioManager;
+import android.media.AudioSystem;
+import android.os.PowerManager;
+import android.os.Vibrator;
+import android.util.Log;
+
+import androidx.preference.PreferenceManager;
+
+import com.android.internal.util.ArrayUtils;
+
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.util.Arrays;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+
+import co.aospa.glyph.Constants.Constants;
+import co.aospa.glyph.Manager.EssentialLedManager;
+import co.aospa.glyph.Utils.CustomRingtoneManager;
+import co.aospa.glyph.Utils.GlyphEffects;
+import co.aospa.glyph.Utils.FileUtils;
+import co.aospa.glyph.Utils.ResourceUtils;
+
+/**
+ * Core animation engine handling LED playback sequences, interpreting CSV
+ * frames,
+ * managing concurrency, wakelocks, and state synchronization across different
+ * animation types like calls, charging, volume, and progress.
+ */
+public final class AnimationManager {
+
+    /** Log Tag. */
+    private static final String TAG = "GlyphAnimationManager";
+    /** Debug flag. */
+    private static final boolean DEBUG = true;
+    /** Partial wake lock to ensure execution during screen-off. */
+    private static PowerManager.WakeLock sWakeLock;
+
+    /**
+     * Acquires a partial wake lock to prevent the device from sleeping
+     * during critical continuous animations.
+     * 
+     * @param context Host application context.
+     */
+    private static void acquireWakeLock(Context context) {
+        if (sWakeLock == null) {
+            PowerManager pm = (PowerManager) context.getSystemService(Context.POWER_SERVICE);
+            sWakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, TAG);
+            sWakeLock.acquire();
+            if (DEBUG)
+                Log.d(TAG, "Acquired wakelock");
+        }
+    }
+
+    /**
+     * Safely releases the globally held wake lock when animations conclude.
+     */
+    private static void releaseWakeLock() {
+        if (sWakeLock != null) {
+            sWakeLock.release();
+            sWakeLock = null;
+            if (DEBUG)
+                Log.d(TAG, "Released wakelock");
+        }
+    }
+
+    /** Shared single-thread executor ensuring sequential animation processing. */
+    private static final ExecutorService sExecutorService = Executors.newSingleThreadExecutor();
+
+    /**
+     * Submits a background rendering task to the shared single-thread executor.
+     * 
+     * @param runnable Rendering sequence wrapped in Runnable.
+     * @return Future object tracking the task execution.
+     */
+    private static Future<?> submit(Runnable runnable) {
+        return sExecutorService.submit(runnable);
+    }
+
+    /**
+     * Evaluates if a new animation can safely start without trampling
+     * higher-priority active indicators like calls or user overrides.
+     * 
+     * @param name Descriptive name of the requesting animation.
+     * @param wait If true, spins until the prior animation concludes (timeout
+     *             2500ms).
+     * @return True if permitted to start.
+     */
+    private static boolean check(String name, boolean wait) {
+        if (DEBUG)
+            Log.d(TAG, "Playing animation | name: " + name + " | waiting: " + Boolean.toString(wait));
+
+        if (StatusManager.isAllLedActive()) {
+            if (DEBUG)
+                Log.d(TAG, "All LEDs are active, exiting animation | name: " + name);
+            return false;
+        }
+
+        if (StatusManager.isCallLedActive()) {
+            if (DEBUG)
+                Log.d(TAG, "Call animation is currently active, exiting animation | name: " + name);
+            return false;
+        }
+
+        if (StatusManager.isAnimationActive()) {
+            long start = System.currentTimeMillis();
+            if (wait) {
+                if (DEBUG)
+                    Log.d(TAG, "There is already an animation playing, wait | name: " + name);
+                while (StatusManager.isAnimationActive()) {
+                    if (System.currentTimeMillis() - start >= 2500)
+                        return false;
+                }
+            } else {
+                if (DEBUG)
+                    Log.d(TAG, "There is already an animation playing, exiting | name: " + name);
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Checks mid-execution if the running logic should forcefully yield.
+     * 
+     * @param name Caller animation identifier.
+     * @return True if the thread should throw an InterruptedException.
+     */
+    private static boolean checkInterruption(String name) {
+        if (StatusManager.isAllLedActive()
+                || (name != "call" && StatusManager.isCallLedEnabled())
+                || (name == "call" && !StatusManager.isCallLedEnabled())
+                || (name == "progress" && StatusManager.isVolumeAnimationActive())) {
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Initiates playback of a CSV-defined LED animation file asynchronously.
+     * 
+     * @param context Host application context.
+     * @param name    Name of the CSV animation asset.
+     */
+    public static void playCsv(Context context, String name) {
+        playCsv(context, name, false);
+    }
+
+    /**
+     * Initiates playback of a CSV-defined LED animation file asynchronously,
+     * optionally waiting for prior animations to resolve.
+     * 
+     * @param context Host application context.
+     * @param name    Name of the CSV animation asset.
+     * @param wait    Wait flag overriding active animations if permitted.
+     */
+    public static void playCsv(Context context, String name, boolean wait) {
+        if (CustomRingtoneManager.getCustomRingtoneFile(context, name) != null) {
+            submit(() -> {
+                Vibrator v = context.getSystemService(Vibrator.class);
+                GlyphEffects.run(name, Constants.getBrightness(), v, context, AudioManager.STREAM_NOTIFICATION);
+            });
+            return;
+        }
+        submit(() -> {
+            if (!check(name, wait))
+                return;
+
+            acquireWakeLock(context);
+
+            StatusManager.setAnimationActive(true);
+
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(
+                    ResourceUtils.getAnimation(name)))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    if (checkInterruption("csv"))
+                        throw new InterruptedException();
+                    line = line.replace(" ", "");
+                    line = line.endsWith(",") ? line.substring(0, line.length() - 1) : line;
+                    String[] pattern = line.split(",");
+                    if (ArrayUtils.contains(Constants.getSupportedAnimationPatternLengths(), pattern.length)) {
+                        updateLedFrame(pattern);
+                    } else {
+                        if (DEBUG)
+                            Log.d(TAG, "Animation line length mismatch | name: " + name + " | line: " + line);
+                        throw new InterruptedException();
+                    }
+                    Thread.sleep(16, 666000);
+                }
+            } catch (Exception e) {
+                if (DEBUG)
+                    Log.d(TAG, "Exception while playing animation | name: " + name + " | exception: " + e);
+            } finally {
+                updateLedFrame(new float[5]);
+                StatusManager.setAnimationActive(false);
+                if (DEBUG)
+                    Log.d(TAG, "Done playing animation | name: " + name);
+                releaseWakeLock();
+            }
+        });
+    }
+
+    public static void playCharging(Context context, int batteryLevel, boolean wait) {
+        submit(() -> {
+            if (!check("charging", wait))
+                return;
+
+            acquireWakeLock(context);
+            StatusManager.setAnimationActive(true);
+            StatusManager.setChargingAnimationActive(true);
+
+            int[] batteryArray = StatusManager.getBatteryArray();
+            int amount = (int) Math.floor((batteryLevel / 100D) * batteryArray.length);
+            int last = StatusManager.getChargingLedLast();
+            int next = amount - 1;
+
+            try {
+                if (last <= next) {
+                    for (int i = last; i <= next; i++) {
+                        if (checkInterruption("charging"))
+                            throw new InterruptedException();
+                        StatusManager.setChargingLedLast(i);
+                        batteryArray[i] = Constants.MAX_PATTERN_BRIGHTNESS;
+                        updateLedFrame(batteryArray);
+                        Thread.sleep(16, 666000);
+                    }
+                } else if (last > next) {
+                    for (int i = last; i > next; i--) {
+                        if (checkInterruption("charging"))
+                            throw new InterruptedException();
+                        StatusManager.setChargingLedLast(i);
+                        batteryArray[i] = 0;
+                        updateLedFrame(batteryArray);
+                        Thread.sleep(16, 666000);
+                    }
+                }
+            } catch (InterruptedException e) {
+                if (DEBUG)
+                    Log.d(TAG, "Exception while playing animation, interrupted | name: charging");
+                if (!StatusManager.isAllLedActive()) {
+                    StatusManager.setChargingLedLast(0);
+                    batteryArray = new int[ResourceUtils.getInteger("glyph_settings_battery_levels_num")];
+                    updateLedFrame(batteryArray);
+                }
+            } finally {
+                StatusManager.setAnimationActive(false);
+                StatusManager.setBatteryArray(batteryArray);
+                if (DEBUG)
+                    Log.d(TAG, "Done playing animation | name: charging");
+                releaseWakeLock();
+            }
+        });
+    }
+
+    public static void dismissCharging(Context context) {
+        submit(() -> {
+            int[] emptyArray = new int[ResourceUtils.getInteger("glyph_settings_battery_levels_num")];
+            int[] batteryArray = StatusManager.getBatteryArray();
+
+            if (Arrays.equals(emptyArray, batteryArray))
+                return;
+
+            if (!check("Dismiss charging", false))
+                return;
+
+            acquireWakeLock(context);
+            StatusManager.setAnimationActive(true);
+
+            try {
+                if (checkInterruption("Dismiss charging"))
+                    throw new InterruptedException();
+                for (int i = batteryArray.length - 1; i >= 0; i--) {
+                    if (checkInterruption("Dismiss charging"))
+                        throw new InterruptedException();
+                    if (batteryArray[i] != 0) {
+                        StatusManager.setChargingLedLast(i);
+                        batteryArray[i] = 0;
+                        updateLedFrame(batteryArray);
+                        Thread.sleep(16, 666000);
+                    }
+                }
+            } catch (InterruptedException e) {
+                if (DEBUG)
+                    Log.d(TAG, "Exception while playing animation, interrupted | name: Dismiss charging");
+                if (!StatusManager.isAllLedActive())
+                    updateLedFrame(new int[batteryArray.length]);
+            } finally {
+                StatusManager.setChargingLedLast(0);
+                StatusManager.setChargingAnimationActive(false);
+                StatusManager.setAnimationActive(false);
+                if (DEBUG)
+                    Log.d(TAG, "Done playing animation | name: Dismiss charging");
+                releaseWakeLock();
+            }
+        });
+    }
+
+    /**
+     * Triggers the volume level meter indicating media sound stages.
+     * 
+     * @param context     Context.
+     * @param volumeLevel Current volume scalar 0-100.
+     * @param wait        Optional deferral flag.
+     */
+    public static void playVolume(Context context, int volumeLevel, boolean wait) {
+        submit(() -> {
+            if (!check("volume", wait))
+                return;
+
+            acquireWakeLock(context);
+
+            StatusManager.setAnimationActive(true);
+            StatusManager.setVolumeAnimationActive(true);
+
+            int[] volumeArray = StatusManager.getVolumeArray();
+            if (volumeArray == null) {
+                if (DEBUG)
+                    Log.d(TAG, "Volume array is null, cannot play animation");
+                StatusManager.setAnimationActive(false);
+                releaseWakeLock();
+                return;
+            }
+
+            int amount = (int) Math.round((volumeLevel / 100D) * volumeArray.length);
+            int last = StatusManager.getVolumeLedLast();
+            int next = amount - 1;
+
+            try {
+                if (last <= next) {
+                    for (int i = last; i <= next; i++) {
+                        if (checkInterruption("volume"))
+                            throw new InterruptedException();
+                        StatusManager.setVolumeLedLast(i);
+                        volumeArray[i] = Constants.MAX_PATTERN_BRIGHTNESS;
+                        updateLedFrame(volumeArray);
+                        Thread.sleep(16, 666000);
+                    }
+                } else if (last > next) {
+                    for (int i = last; i > next; i--) {
+                        if (checkInterruption("volume"))
+                            throw new InterruptedException();
+                        StatusManager.setVolumeLedLast(i);
+                        volumeArray[i] = 0;
+                        updateLedFrame(volumeArray);
+                        Thread.sleep(16, 666000);
+                    }
+                }
+            } catch (InterruptedException e) {
+                if (DEBUG)
+                    Log.d(TAG, "Exception while playing animation, interrupted | name: volume");
+                if (!StatusManager.isAllLedActive()) {
+                    StatusManager.setVolumeLedLast(0);
+                    volumeArray = new int[ResourceUtils.getInteger("glyph_settings_volume_levels_num")];
+                    updateLedFrame(volumeArray);
+                }
+            } finally {
+                StatusManager.setAnimationActive(false);
+                StatusManager.setVolumeArray(volumeArray);
+                if (DEBUG)
+                    Log.d(TAG, "Done playing animation | name: volume");
+                releaseWakeLock();
+            }
+        });
+    }
+
+    /**
+     * Reverses and dismisses the volume level meter smoothly fading LEDs.
+     * 
+     * @param context Host application context.
+     */
+    public static void dismissVolume(Context context) {
+        submit(() -> {
+            int[] emptyArray = new int[ResourceUtils.getInteger("glyph_settings_volume_levels_num")];
+            int[] volumeArray = StatusManager.getVolumeArray();
+
+            if (Arrays.equals(emptyArray, volumeArray)) {
+                StatusManager.setVolumeAnimationActive(false);
+                return;
+            }
+
+            if (!check("Dismiss volume", false))
+                return;
+
+            acquireWakeLock(context);
+            StatusManager.setAnimationActive(true);
+
+            try {
+                if (checkInterruption("Dismiss volume"))
+                    throw new InterruptedException();
+                for (int i = volumeArray.length - 1; i >= 0; i--) {
+                    if (volumeArray[i] != 0) {
+                        if (checkInterruption("Dismiss volume"))
+                            throw new InterruptedException();
+                        StatusManager.setVolumeLedLast(i);
+                        volumeArray[i] = 0;
+                        updateLedFrame(volumeArray);
+                        Thread.sleep(16, 666000);
+                    }
+                }
+            } catch (InterruptedException e) {
+                if (DEBUG)
+                    Log.d(TAG, "Exception while playing animation, interrupted | name: Dismiss volume");
+                if (!StatusManager.isAllLedActive())
+                    updateLedFrame(new int[volumeArray.length]);
+            } finally {
+                StatusManager.setVolumeLedLast(0);
+                StatusManager.setVolumeAnimationActive(false);
+                StatusManager.setAnimationActive(false);
+                if (DEBUG)
+                    Log.d(TAG, "Done playing animation | name: Dismiss volume");
+                releaseWakeLock();
+            }
+        });
+    }
+
+    /**
+     * Loops a pre-defined or custom incoming call CSV animation pattern.
+     * 
+     * @param name Name of the matched call animation.
+     */
+    public static void playCall(String name) {
+        Context context = Constants.CONTEXT;
+        if (context != null && CustomRingtoneManager.getCustomRingtoneFile(context, name) != null) {
+            StatusManager.setCallLedEnabled(true);
+            StatusManager.setCallLedActive(true);
+            Vibrator v = context.getSystemService(Vibrator.class);
+            while (StatusManager.isCallLedEnabled()) {
+                GlyphEffects.run(name, Constants.getBrightness(), v, context, AudioManager.STREAM_RING);
+            }
+            StatusManager.setCallLedActive(false);
+            return;
+        }
+
+        StatusManager.setCallLedEnabled(true);
+
+        if (!check("call: " + name, true))
+            return;
+
+        StatusManager.setCallLedActive(true);
+
+        while (StatusManager.isCallLedEnabled()) {
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(
+                    ResourceUtils.getCallAnimation(name)))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    if (checkInterruption("call"))
+                        throw new InterruptedException();
+                    line = line.replace(" ", "");
+                    line = line.endsWith(",") ? line.substring(0, line.length() - 1) : line;
+                    String[] pattern = line.split(",");
+                    if (ArrayUtils.contains(Constants.getSupportedAnimationPatternLengths(), pattern.length)) {
+                        updateLedFrame(pattern);
+                    } else {
+                        if (DEBUG)
+                            Log.d(TAG, "Animation line length mismatch | name: " + name + " | line: " + line);
+                        throw new InterruptedException();
+                    }
+                    Thread.sleep(16, 666000);
+                }
+            } catch (Exception e) {
+                if (DEBUG)
+                    Log.d(TAG, "Exception while playing animation | name: " + name + " | exception: " + e);
+            } finally {
+                if (StatusManager.isAllLedActive()) {
+                    if (DEBUG)
+                        Log.d(TAG, "All LED active, pause playing animation | name: " + name);
+                    while (StatusManager.isAllLedActive()) {
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Cancels the active incoming call animation and clears LED states.
+     */
+    public static void stopCall() {
+        if (DEBUG)
+            Log.d(TAG, "Disabling Call Animation");
+        StatusManager.setCallLedEnabled(false);
+        updateLedFrame(new float[5]);
+        StatusManager.setCallLedActive(false);
+        if (DEBUG)
+            Log.d(TAG, "Done playing Call Animation");
+    }
+
+    /**
+     * Activates the legacy global essential notification pulsing LED.
+     */
+    public static void playEssential(Context context) {
+        if (DEBUG)
+            Log.d(TAG, "Playing Essential Animation");
+        int led = ResourceUtils.getInteger("glyph_settings_notifs_essential_led");
+        if (!StatusManager.isEssentialLedActive()) {
+            submit(() -> {
+                if (!check("essential", true))
+                    return;
+
+                acquireWakeLock(context);
+                StatusManager.setAnimationActive(true);
+
+                try {
+                    if (checkInterruption("essential"))
+                        throw new InterruptedException();
+                    int[] steps = { 12, 24, 36, 48, 60 };
+                    for (int i : steps) {
+                        if (checkInterruption("essential"))
+                            throw new InterruptedException();
+                        updateLedSingle(led, Constants.MAX_PATTERN_BRIGHTNESS / 100 * i);
+                        Thread.sleep(16, 666000);
+                    }
+                } catch (InterruptedException e) {
+                } finally {
+                    StatusManager.setAnimationActive(false);
+                    StatusManager.setEssentialLedActive(true);
+                    if (DEBUG)
+                        Log.d(TAG, "Done playing animation | name: essential");
+                    releaseWakeLock();
+                }
+            });
+        } else {
+            updateLedSingle(led, Constants.MAX_PATTERN_BRIGHTNESS / 100 * 60);
+            return;
+        }
+    }
+
+    /**
+     * Pulses a targeted LED zone defined in user preferences for specific apps.
+     * 
+     * @param context     Host application context.
+     * @param packageName Originating app package needing priority attention.
+     */
+    public static void playEssentialForApp(Context context, String packageName) {
+        if (DEBUG)
+            Log.d(TAG, "Playing Essential Animation for app: " + packageName);
+
+        int ledZone = EssentialLedManager.getEffectiveLedZone(context, packageName);
+
+        if (!StatusManager.isEssentialLedActive()) {
+            submit(() -> {
+                if (!check("essential", true))
+                    return;
+
+                acquireWakeLock(context);
+                StatusManager.setAnimationActive(true);
+
+                try {
+                    if (checkInterruption("essential"))
+                        throw new InterruptedException();
+                    int[] steps = { 12, 24, 36, 48, 60 };
+                    for (int i : steps) {
+                        if (checkInterruption("essential"))
+                            throw new InterruptedException();
+                        updateLedSingle(ledZone, Constants.MAX_PATTERN_BRIGHTNESS / 100 * i);
+                        Thread.sleep(16, 666000);
+                    }
+                } catch (InterruptedException e) {
+                } finally {
+                    StatusManager.setAnimationActive(false);
+                    StatusManager.setEssentialLedActive(true);
+                    StatusManager.setEssentialLedZone(ledZone);
+                    if (DEBUG)
+                        Log.d(TAG, "Done playing animation | name: essential | zone: " + ledZone);
+                    releaseWakeLock();
+                }
+            });
+        } else {
+            int currentZone = StatusManager.getEssentialLedZone();
+            if (currentZone != ledZone) {
+                updateLedSingle(currentZone, 0);
+                updateLedSingle(ledZone, Constants.MAX_PATTERN_BRIGHTNESS / 100 * 60);
+                StatusManager.setEssentialLedZone(ledZone);
+            } else {
+                updateLedSingle(ledZone, Constants.MAX_PATTERN_BRIGHTNESS / 100 * 60);
+            }
+            return;
+        }
+    }
+
+    /**
+     * Disables the active essential LED marker.
+     */
+    public static void stopEssential() {
+        if (DEBUG)
+            Log.d(TAG, "Disabling Essential Animation");
+        StatusManager.setEssentialLedActive(false);
+        if (!StatusManager.isAnimationActive() && !StatusManager.isAllLedActive()) {
+            int ledZone = StatusManager.getEssentialLedZone();
+            updateLedSingle(ledZone, 0);
+        }
+    }
+
+    /**
+     * Briefly flashes targeted frequencies onto matching physical zones for
+     * visualizers.
+     * 
+     * @param name Specific mapped frequency band ID.
+     */
+    public static void playMusic(Context context, String name) {
+        submit(() -> {
+            float maxPatternBrightness = (float) Constants.MAX_PATTERN_BRIGHTNESS;
+            float[] pattern = new float[5];
+
+            switch (name) {
+                case "low":
+                    pattern[4] = maxPatternBrightness;
+                    break;
+                case "mid_low":
+                    pattern[3] = maxPatternBrightness;
+                    break;
+                case "mid":
+                    pattern[2] = maxPatternBrightness;
+                    break;
+                case "mid_high":
+                    pattern[0] = maxPatternBrightness;
+                    break;
+                case "high":
+                    pattern[1] = maxPatternBrightness;
+                    break;
+                default:
+                    if (DEBUG)
+                        Log.d(TAG, "Name doesn't match any zone, returning | name: " + name);
+                    return;
+            }
+
+            acquireWakeLock(context);
+            try {
+                if (StatusManager.isGlyphIdle()) {
+                    updateLedFrame(pattern);
+                    Thread.sleep(106);
+                }
+            } catch (InterruptedException e) {
+                if (DEBUG)
+                    Log.d(TAG, "Interrupted while playing music animation | name: " + name);
+            } finally {
+                if (StatusManager.isGlyphIdle()) {
+                    updateLedFrame(new float[5]);
+                    if (DEBUG)
+                        Log.d(TAG, "Done playing animation | name: " + name);
+                }
+                releaseWakeLock();
+            }
+        });
+    }
+
+    /**
+     * Helper converting string array frame states into floats parsing values.
+     * 
+     * @param pattern Array of string-formatted LED brightness levels.
+     */
+    private static void updateLedFrame(String[] pattern) {
+        updateLedFrame(Arrays.stream(pattern)
+                .mapToInt(Integer::parseInt)
+                .toArray());
+    }
+
+    /**
+     * Helper converting integer array frame states into floats.
+     * 
+     * @param pattern Array of integer-formatted LED brightness levels.
+     */
+    public static void updateLedFrame(int[] pattern) {
+        float[] floatPattern = new float[pattern.length];
+        for (int i = 0; i < pattern.length; i++) {
+            floatPattern[i] = (float) pattern[i];
+        }
+        updateLedFrame(floatPattern);
+    }
+
+    /**
+     * Final stage scaling logic modifying pattern intensities based on user
+     * brightness settings avoiding overriding essential active elements.
+     * 
+     * @param pattern Float-formatted target intensities map.
+     */
+    private static void updateLedFrame(float[] pattern) {
+        // if (DEBUG) Log.d(TAG, "Updating pattern: " + pattern);
+        float maxPatternBrightness = (float) Constants.MAX_PATTERN_BRIGHTNESS;
+        float currentBrightness = (float) Constants.getBrightness();
+        int essentialLed = ResourceUtils.getInteger("glyph_settings_notifs_essential_led");
+
+        if (StatusManager.isEssentialLedActive()) {
+            if (pattern.length == 5) { // Phone (1) pattern
+                if (pattern[1] < (maxPatternBrightness / 100 * 60)) {
+                    pattern[1] = maxPatternBrightness / 100 * 60;
+                }
+            } else if (pattern.length == 33) { // Phone (2) pattern
+                if (pattern[2] < (maxPatternBrightness / 100 * 60)) {
+                    pattern[2] = maxPatternBrightness / 100 * 60;
+                }
+            }
+        }
+
+        for (int i = 0; i < pattern.length; i++) {
+            pattern[i] = pattern[i] / maxPatternBrightness * currentBrightness;
+        }
+        FileUtils.writeFrameLed(pattern);
+    }
+
+    /**
+     * Helper updating individual LED. String brightness.
+     * 
+     * @param led        Target zone index.
+     * @param brightness String formatted target level.
+     */
+    private static void updateLedSingle(int led, String brightness) {
+        updateLedSingle(led, Float.parseFloat(brightness));
+    }
+
+    /**
+     * Helper updating individual LED. Int brightness.
+     * 
+     * @param led        Target zone index.
+     * @param brightness Int formatted target level.
+     */
+    private static void updateLedSingle(int led, int brightness) {
+        updateLedSingle(led, (float) brightness);
+    }
+
+    /**
+     * Core update applying user brightness settings onto individual LED zones,
+     * protecting essential active states from dimming overrides.
+     * 
+     * @param led        Target zone index.
+     * @param brightness Raw brightness magnitude.
+     */
+    private static void updateLedSingle(int led, float brightness) {
+        // if (DEBUG) Log.d(TAG, "Updating led | led: " + led + " | brightness: " +
+        // brightness);
+        float maxPatternBrightness = (float) Constants.MAX_PATTERN_BRIGHTNESS;
+        float currentBrightness = (float) Constants.getBrightness();
+        int essentialLed = ResourceUtils.getInteger("glyph_settings_notifs_essential_led");
+
+        if (StatusManager.isEssentialLedActive()
+                && led == essentialLed
+                && brightness < (maxPatternBrightness / 100 * 60)) {
+            brightness = maxPatternBrightness / 100 * 60;
+        }
+
+        brightness = brightness / maxPatternBrightness * currentBrightness;
+
+        FileUtils.writeSingleLed(led, brightness);
+    }
+
+    /**
+     * Instantly triggers and delays turning off a specific LED simulating a blink.
+     * 
+     * @param context    Host application context.
+     * @param zone       Hardware LED index zero-based.
+     * @param brightness Target max level for duration.
+     * @param durationMs Milliseconds before turning off.
+     */
+    public static void singleLedBlink(Context context, int zone, int brightness, int durationMs) {
+        if (zone < 0 || zone >= ResourceUtils.getInteger("glyph_settings_led_count")) {
+            if (DEBUG)
+                Log.e(TAG, "Invalid LED zone: " + zone);
+            return;
+        }
+
+        if (DEBUG)
+            Log.d(TAG, "Blinking zone " + zone + " at brightness " + brightness + " for " + durationMs + "ms");
+
+        acquireWakeLock(context);
+
+        submit(() -> {
+            try {
+                updateLedSingle(zone, brightness);
+
+                Thread.sleep(durationMs);
+
+                if (!StatusManager.isEssentialLedActive() ||
+                        zone != ResourceUtils.getInteger("glyph_settings_notifs_essential_led")) {
+                    updateLedSingle(zone, 0);
+                }
+            } catch (InterruptedException e) {
+                if (DEBUG)
+                    Log.e(TAG, "Interrupted while blinking LED zone " + zone, e);
+            } finally {
+                releaseWakeLock();
+            }
+        });
+    }
+
+    /**
+     * Simultaneously blinks multiple independent zones.
+     * 
+     * @param context    Host application context.
+     * @param zones      Array targeting concurrent indexes.
+     * @param brightness Uniform target level.
+     * @param durationMs Shared active lifespan milliseconds.
+     */
+    public static void playGlyphFrame(Context context, int[] zones, int brightness, int durationMs) {
+        if (zones == null || zones.length == 0) {
+            if (DEBUG)
+                Log.e(TAG, "Invalid zones array");
+            return;
+        }
+
+        if (DEBUG)
+            Log.d(TAG, "Playing frame with " + zones.length + " zones at brightness " + brightness + " for "
+                    + durationMs + "ms");
+
+        acquireWakeLock(context);
+
+        submit(() -> {
+            try {
+                for (int zone : zones) {
+                    if (zone >= 0 && zone < ResourceUtils.getInteger("glyph_settings_led_count")) {
+                        updateLedSingle(zone, brightness);
+                    }
+                }
+
+                Thread.sleep(durationMs);
+
+                int essentialLed = ResourceUtils.getInteger("glyph_settings_notifs_essential_led");
+                for (int zone : zones) {
+                    if (zone >= 0 && zone < ResourceUtils.getInteger("glyph_settings_led_count")) {
+                        if (!StatusManager.isEssentialLedActive() || zone != essentialLed) {
+                            updateLedSingle(zone, 0);
+                        }
+                    }
+                }
+            } catch (InterruptedException e) {
+                if (DEBUG)
+                    Log.e(TAG, "Interrupted while playing Glyph frame", e);
+            } finally {
+                releaseWakeLock();
+            }
+        });
+    }
+
+    /**
+     * Abruptly extinguishes all active LED functionality globally.
+     */
+    public static void stopAll() {
+        if (DEBUG)
+            Log.d(TAG, "Stopping all LED animations");
+
+        if (StatusManager.isCallLedEnabled()) {
+            stopCall();
+        }
+
+        int ledCount = ResourceUtils.getInteger("glyph_settings_led_count");
+        int essentialLed = ResourceUtils.getInteger("glyph_settings_notifs_essential_led");
+
+        for (int i = 0; i < ledCount; i++) {
+            if (!StatusManager.isEssentialLedActive() || i != essentialLed) {
+                updateLedSingle(i, 0);
+            }
+        }
+
+        StatusManager.setAnimationActive(false);
+        StatusManager.setCallLedActive(false);
+
+        if (DEBUG)
+            Log.d(TAG, "All LED animations stopped");
+    }
+
+    /**
+     * Safely determines if composing music interactions can interrupt current
+     * behaviors.
+     * 
+     * @return True if permitted.
+     */
+    public static boolean canPlayGlyphComposer() {
+        if (StatusManager.isAllLedActive()) {
+            if (DEBUG)
+                Log.d(TAG, "Cannot play Glyph Composer: All LEDs active");
+            return false;
+        }
+
+        if (StatusManager.isCallLedActive()) {
+            if (DEBUG)
+                Log.d(TAG, "Cannot play Glyph Composer: Call animation active");
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Activates or updates a progress indicator visually matching scaled values.
+     * 
+     * @param context         Application context.
+     * @param progressPercent Current completion metric 0-100.
+     * @param progressType    Descriptor classifying origin (e.g. download).
+     * @param wait            Blocks if already animating.
+     */
+    public static void playProgress(Context context, int progressPercent, int progressType, boolean wait) {
+        submit(() -> {
+            if (!check("progress", wait))
+                return;
+
+            acquireWakeLock(context);
+
+            StatusManager.setAnimationActive(true);
+            StatusManager.setProgressAnimationActive(true);
+            StatusManager.setProgressType(progressType);
+
+            int[] progressArray = StatusManager.getProgressArray();
+            if (progressArray == null) {
+                if (DEBUG)
+                    Log.d(TAG, "Progress array is null, cannot play animation");
+                StatusManager.setAnimationActive(false);
+                releaseWakeLock();
+                return;
+            }
+
+            int amount = (int) Math.round((progressPercent / 100D) * progressArray.length);
+            int last = StatusManager.getProgressLedLast();
+            int next = amount - 1;
+
+            try {
+                if (last <= next) {
+                    for (int i = last; i <= next; i++) {
+                        if (checkInterruption("progress"))
+                            throw new InterruptedException();
+                        StatusManager.setProgressLedLast(i);
+                        progressArray[i] = Constants.MAX_PATTERN_BRIGHTNESS;
+                        updateLedFrame(progressArray);
+                        Thread.sleep(16, 666000);
+                    }
+                } else if (last > next) {
+                    for (int i = last; i > next; i--) {
+                        if (checkInterruption("progress"))
+                            throw new InterruptedException();
+                        StatusManager.setProgressLedLast(i);
+                        progressArray[i] = 0;
+                        updateLedFrame(progressArray);
+                        Thread.sleep(16, 666000);
+                    }
+                }
+            } catch (InterruptedException e) {
+                if (DEBUG)
+                    Log.d(TAG, "Exception while playing animation, interrupted | name: progress");
+                if (!StatusManager.isAllLedActive()) {
+                    StatusManager.setProgressLedLast(0);
+                    progressArray = new int[ResourceUtils.getInteger("glyph_settings_volume_levels_num")];
+                    updateLedFrame(progressArray);
+                }
+            } finally {
+                StatusManager.setAnimationActive(false);
+                StatusManager.setProgressArray(progressArray);
+                if (DEBUG)
+                    Log.d(TAG, "Done playing animation | name: progress");
+                releaseWakeLock();
+            }
+        });
+    }
+
+    /**
+     * Neatly turns down completion states fading into off.
+     * 
+     * @param context Host application context.
+     */
+    public static void dismissProgress(Context context) {
+        submit(() -> {
+            int[] emptyArray = new int[ResourceUtils.getInteger("glyph_settings_volume_levels_num")];
+            int[] progressArray = StatusManager.getProgressArray();
+
+            if (Arrays.equals(emptyArray, progressArray)) {
+                StatusManager.setProgressAnimationActive(false);
+                return;
+            }
+
+            if (!check("Dismiss progress", false))
+                return;
+
+            acquireWakeLock(context);
+            StatusManager.setAnimationActive(true);
+
+            try {
+                if (checkInterruption("Dismiss progress"))
+                    throw new InterruptedException();
+                for (int i = progressArray.length - 1; i >= 0; i--) {
+                    if (progressArray[i] != 0) {
+                        if (checkInterruption("Dismiss progress"))
+                            throw new InterruptedException();
+                        StatusManager.setProgressLedLast(i);
+                        progressArray[i] = 0;
+                        updateLedFrame(progressArray);
+                        Thread.sleep(16, 666000);
+                    }
+                }
+            } catch (InterruptedException e) {
+                if (DEBUG)
+                    Log.d(TAG, "Exception while playing animation, interrupted | name: Dismiss progress");
+                if (!StatusManager.isAllLedActive())
+                    updateLedFrame(new int[progressArray.length]);
+            } finally {
+                StatusManager.setProgressLedLast(0);
+                StatusManager.setProgressAnimationActive(false);
+                StatusManager.setAnimationActive(false);
+                if (DEBUG)
+                    Log.d(TAG, "Done playing animation | name: Dismiss progress");
+                releaseWakeLock();
+            }
+        });
+    }
+}

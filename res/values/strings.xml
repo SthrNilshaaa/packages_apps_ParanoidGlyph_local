@@ -1,0 +1,301 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+     Copyright (C) 2013-2016 The CyanogenMod Project
+                   2017 The LineageOS Project
+                   2020-2024 Paranoid Android
+
+     Licensed under the Apache License, Version 2.0 (the "License");
+     you may not use this file except in compliance with the License.
+     You may obtain a copy of the License at
+
+          http://www.apache.org/licenses/LICENSE-2.0
+
+     Unless required by applicable law or agreed to in writing, software
+     distributed under the License is distributed on an "AS IS" BASIS,
+     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     See the License for the specific language governing permissions and
+     limitations under the License.
+-->
+<resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
+
+    <!-- DO NOT TRANSLATE Empty summary for dynamic preferences -->
+    <string name="summary_empty" translatable="false"></string>
+
+    <!-- App Name -->
+    <string name="glyph_settings_app_name">Glyph interface</string>
+
+    <!-- Glyph Settings -->
+    <string name="glyph_settings_enable">Glyph lights</string>
+    <string name="glyph_settings_title">Glyph interface</string>
+    <string name="glyph_settings_summary">Options for Glyph lights</string>
+
+    <string name="glyph_settings_flip_toggle_title">Flip to Glyph</string>
+    <string name="glyph_settings_flip_toggle_summary">Show Glyphs if phone is faced down</string>
+
+    <string name="glyph_settings_auto_brightness_toggle_title">Auto Brightness</string>
+    <string name="glyph_settings_auto_brightness_toggle_summary">Glyph brightness will automatically adjust to your environment</string>
+
+    <string name="glyph_settings_brightness">Brightness</string>
+
+    <string name="glyph_settings_charging_title">Charging</string>
+    <string name="glyph_settings_charging_level_title">Battery level</string>
+    <string name="glyph_settings_charging_level_summary">Show battery level when plugging in</string>
+    <string name="glyph_settings_charging_powershare_title">Reverse wireless charging</string>
+    <string name="glyph_settings_charging_powershare_summary">Show an animation when reverse wireless charging is detected</string>
+
+    <string name="glyph_settings_call_title">Calls</string>
+    <string name="glyph_settings_call_toggle_title">Call animation</string>
+    <string name="glyph_settings_call_toggle_summary">Flash LEDs on incoming calls</string>
+    <string name="glyph_settings_call_sub_toggle_title">Enable call animation</string>
+    <string name="glyph_settings_call_sub_animations_title">Pattern</string>
+
+    <string name="glyph_settings_notifs_title">Notifications</string>
+    <string name="glyph_settings_notifs_toggle_title">Notification animation</string>
+    <string name="glyph_settings_notifs_toggle_summary">Flash LEDs on new notifications</string>
+    <string name="glyph_settings_notifs_sub_title">Apps to allow</string>
+    <string name="glyph_settings_notifs_sub_toggle_title">Enable notification animation</string>
+    <string name="glyph_settings_notifs_sub_animations_title">Pattern</string>
+    <string name="glyph_settings_notifs_sub_essential_title">Essential Notifications</string>
+    <string name="glyph_settings_notifs_sub_essential_summary">Essential Glyph will be displayed until Essential notifications are read or dismissed</string>
+
+    <string name="glyph_settings_notifs_permission_dialog_title">Notification Access Required</string>
+    <string name="glyph_settings_notifs_permission_dialog_message">To use the Glyph Interface for notifications, you must grant notification access permissions.</string>
+
+    <string name="glyph_settings_volume_title">Volume</string>
+    <string name="glyph_settings_volume_level_toggle_title">Volume indicator</string>
+    <string name="glyph_settings_volume_level_toggle_summary">Show volume level when adjusting</string>
+
+    <string name="glyph_settings_misc_title">Miscellaneous</string>
+    <string name="glyph_settings_music_visualizer_toggle_title">Music Visualizer</string>
+    <string name="glyph_settings_music_visualizer_toggle_summary">DISCO LIGHTS!</string>
+
+    <!-- QS tile -->
+    <string name="glyph_accessibility_quick_settings">Glyph</string>
+    <string name="glyph_accessibility_quick_settings_torch">Glyph torch</string>
+    <string name="glyph_accessibility_quick_settings_music_visualizer">Glyph Music Visualizer</string>
+
+    <string name="glyph_accessibility_quick_settings_off">Off</string>
+    <string name="glyph_accessibility_quick_settings_on">On</string>
+    <string name="glyph_accessibility_quick_settings_unavailable">Unavailable</string>
+
+    <!-- Gesture Settings -->
+    <string name="glyph_settings_gesture_title">Gesture</string>
+    <string name="glyph_settings_shake_torch_toggle_title">Shake to toggle torch</string>
+    <string name="glyph_settings_shake_torch_toggle_summary">Shake your device to turn Glyph torch on or off</string>
+    <string name="glyph_settings_shake_sensitivity_title">Shake sensitivity</string>
+    <string name="glyph_settings_shake_sensitivity_summary">Adjust how hard you need to shake (lower = more sensitive)</string>
+    <string name="glyph_settings_shake_count_title">Required shakes</string>
+    <string name="glyph_settings_shake_count_summary">Number of consecutive shakes needed to trigger</string>
+    <string name="glyph_settings_shake_haptic_title">Haptic intensity</string>
+    <string name="glyph_settings_shake_haptic_summary">Adjust vibration strength when triggered</string>
+
+    <!-- Flip to Glyph Ringer Mode -->
+    <string name="glyph_settings_flip_ringer_mode_title">Flip ringer mode</string>
+    <string name="glyph_settings_flip_ringer_mode_summary">Choose ringer mode when device is flipped</string>
+    
+    <!-- Ringer Mode Options -->
+    <string name="glyph_settings_flip_ringer_mode_follow_system">Follow system</string>
+    <string name="glyph_settings_flip_ringer_mode_vibrate">Vibrate</string>
+    <string name="glyph_settings_flip_ringer_mode_silent">Silent</string>
+    <string name="glyph_settings_flip_ringer_mode_normal">Ring</string>
+
+    <!-- Glyph Composer -->
+    <string name="glyph_settings_composer_enable_title">Enable Call glyph zone</string>
+    <string name="glyph_settings_composer_enable_summary">Sync Glyphs with custom ringtone patterns</string>
+    <string name="glyph_settings_composer_fallback_title">Fallback to animations</string>
+    <string name="glyph_settings_composer_fallback_summary">Use standard animations when no pattern is found</string>
+    <string name="glyph_settings_composer_preview_title">Preview patterns</string>
+    <string name="glyph_settings_composer_preview_summary">Preview composer and fallback animations</string>
+    <string name="glyph_settings_composer_create_title">Create pattern</string>
+    <string name="glyph_settings_composer_create_summary">Design custom Glyph patterns</string>
+    <string name="glyph_settings_composer_apply_title">Apply pattern to ringtone</string>
+    <string name="glyph_settings_composer_apply_summary">Select and apply saved patterns easily</string>
+
+    <!-- Glyph Schedule Settings -->
+    <string name="glyph_settings_schedule_title">Schedule Glyph</string>
+    <string name="glyph_settings_schedule_summary">Automatically disable Glyph during specified hours</string>
+    <string name="glyph_settings_schedule_enable_title">Enable Schedule</string>
+    <string name="glyph_settings_schedule_enable_summary">Automatically disable Glyph features during scheduled hours</string>
+    <string name="glyph_settings_schedule_start_time_title">Start Time</string>
+    <string name="glyph_settings_schedule_start_time_summary">Set the time when Glyph features will be disabled</string>
+    <string name="glyph_settings_schedule_end_time_title">End Time</string>
+    <string name="glyph_settings_schedule_end_time_summary">Set the time when Glyph features will be re-enabled</string>
+    <string name="glyph_settings_schedule_info_summary">Schedule will disable Glyph features except torch. Torch tile and shake-to-torch will continue to work during scheduled hours.</string>
+    <string name="glyph_settings_schedule_status_title">Current Status</string>
+    <string name="glyph_settings_schedule_status_summary">Shows whether the schedule is currently active</string>
+    <string name="glyph_settings_schedule_active">Schedule active — Glyph disabled (Torch still works)</string>
+    <string name="glyph_settings_schedule_inactive">Schedule inactive — Glyph enabled</string>
+    <string name="glyph_settings_schedule_disabled">Schedule disabled</string>
+    <string name="glyph_accessibility_quick_settings_disabled">Disabled</string>
+    <string name="glyph_settings_active_days_title">Active Days</string>
+    <string name="glyph_settings_active_days_summary">Every day</string>
+    <string name="glyph_settings_active_days_dialog_title">Select Days</string>
+
+    <string name="glyph_settings_progress_title">Progress</string>
+    <string name="glyph_settings_progress_toggle_title">Glyph progress</string>
+    <string name="glyph_settings_progress_toggle_summary">Show progress bar when Glyph is active</string>
+    <string name="glyph_settings_progress_music_toggle_title">Music progress</string>
+    <string name="glyph_settings_progress_music_toggle_summary">Show progress bar when music is playing</string>
+
+    <!-- Essential Notification Settings -->
+    <string name="glyph_settings_essential_title">Essential Notifications</string>
+    <string name="glyph_settings_essential_info">Essential Glyph will be displayed until Essential notifications are read or dismissed. You can customize which LED zone lights up for each app.</string>
+    <string name="glyph_settings_essential_apps_title">Essential Apps</string>
+    <string name="glyph_settings_essential_configure">Configure LED zone</string>
+    <string name="glyph_settings_essential_zone_dialog_title">LED Zone Configuration</string>
+    <string name="glyph_settings_essential_zone_default">Default (LED %d)</string>
+    <string name="glyph_settings_essential_zone_custom">Custom LED zone</string>
+    <string name="glyph_settings_essential_zone_select_title">Select LED Zone</string>
+    <string name="glyph_settings_essential_zone_preview">Previewing LED %d</string>
+    <string name="glyph_settings_essential_current_zone">Current: LED %d</string>
+    <string name="glyph_settings_essential_using_default">Using default LED</string>
+    <string name="glyph_settings_essential_using_custom">Using custom LED</string>
+
+    <!-- Migrated UI Strings -->
+    <string name="main_header">Glyph Interface</string>
+    <string name="card_ringtones">Ringtones</string>
+    <string name="card_notifications">Notifications</string>
+    <string name="master_switch_label">Glyphs Lights</string>
+    <string name="personalization_header">PERSONALIZATION</string>
+    <string name="alerts_haptics_header">ALERTS &amp; HAPTICS</string>
+    <string name="glyph_dashboard_header">GLYPH DASHBOARD</string>
+    <string name="advanced_features_header">ADVANCED FEATURES</string>
+    <string name="import_ringtone_title">Import Ringtone</string>
+    <string name="import_ringtone_desc">Import a custom Nothing .ogg file</string>
+    <string name="import_warning">Please disable your system default ringtone and notification sound to prevent overlapping audio if you use an imported custom ringtone.\n\nDownload custom ringtones at:\nhttps://glyphtones.firu.dev/</string>
+    <string name="ring_notif_haptics_title">Ringtone &amp; Notification Haptics</string>
+    <string name="ring_notif_haptics_desc">Synced haptic feedback for custom ringtone and notification patterns</string>
+    <string name="volume_flip_only_title">Shows when device flipped</string>
+    <string name="volume_flip_only_desc">Only visualize volume on LEDs when phone is face down</string>
+    <string name="delete_confirm_title">Delete Custom Ringtone?</string>
+    <string name="delete_confirm_message">Are you sure you want to delete this imported ringtone? This action cannot be undone.</string>
+    <string name="delete">Delete</string>
+    <string name="pref_file">Glyph Settings</string>
+
+    <string name="indicators_flip_only_title">Indicators: Flip Only</string>
+    <string name="indicators_flip_only_desc">All system indicators (Volume, Progress, Charging) will ONLY show when the device is face down (flipped).</string>
+    <string name="charging_flip_only_title">Charging Flip Only</string>
+    <string name="charging_flip_only_desc">Show charging level ONLY when the device is face down.</string>
+    <string name="progress_flip_only_title">Progress Flip Only</string>
+    <string name="progress_flip_only_desc">Only visualize progress on LEDs when phone is face down</string>
+    <string name="shake_to_glyph_title">Shake to toggle torch</string>
+    <string name="shake_to_glyph_desc">Shake the phone to toggle the Glyph torch (essential light)</string>
+    <string name="music_visualizer_flip_only_title">Shows when device flipped</string>
+    <string name="music_visualizer_flip_only_desc">Only visualize music on LEDs when phone is face down</string>
+
+    <string-array name="notif_style_names">
+        <item>Static</item>
+        <item>Pulse</item>
+        <item>Quick Blink</item>
+        <item>oi!</item>
+        <item>nope</item>
+        <item>why</item>
+        <item>bulb one</item>
+        <item>bulb two</item>
+        <item>guiro</item>
+        <item>squiggle</item>
+        <item>Wave</item>
+        <item>Heartbeat</item>
+        <item>Strobe</item>
+        <item>Drop</item>
+        <item>Tap</item>
+        <item>Slide</item>
+        <item>Sweep</item>
+        <item>Fade</item>
+        <item>Knight Rider</item>
+        <item>Twinkle</item>
+        <item>Radar</item>
+        <item>Metronome</item>
+        <item>Sizzle</item>
+        <item>Ping</item>
+        <item>Fireflies</item>
+        <item>Spotlight</item>
+        <item>Scanline</item>
+        <item>Spiral</item>
+        <item>Raindrops</item>
+        <item>Heartbeat Rapid</item>
+        <item>Blink Sync</item>
+        <item>Sequence Run</item>
+        <item>Chaos</item>
+        <item>Aurora</item>
+    </string-array>
+    <string-array name="flip_style_names">
+        <item>Static</item>
+        <item>Pulse</item>
+        <item>Quick Blink</item>
+        <item>oi!</item>
+        <item>nope</item>
+        <item>why</item>
+        <item>bulb one</item>
+        <item>bulb two</item>
+        <item>guiro</item>
+        <item>squiggle</item>
+        <item>Stock</item>
+        <item>Wave</item>
+        <item>Heartbeat</item>
+        <item>Strobe</item>
+        <item>Bounce</item>
+        <item>Sparkle</item>
+        <item>Zigzag</item>
+        <item>Drop</item>
+        <item>Tap</item>
+        <item>Slide</item>
+        <item>Sweep</item>
+        <item>Fade</item>
+        <item>Knight Rider</item>
+        <item>Twinkle</item>
+        <item>Radar</item>
+        <item>Metronome</item>
+        <item>Sizzle</item>
+        <item>Ping</item>
+        <item>Fireflies</item>
+        <item>Spotlight</item>
+        <item>Scanline</item>
+        <item>Spiral</item>
+        <item>Raindrops</item>
+        <item>Heartbeat Rapid</item>
+        <item>Blink Sync</item>
+        <item>Sequence Run</item>
+        <item>Chaos</item>
+        <item>Aurora</item>
+    </string-array>
+    <string-array name="call_style_names">
+        <item>Static</item>
+        <item>Blink</item>
+        <item>pneumatic</item>
+        <item>abra</item>
+        <item>squirrels</item>
+        <item>snaps</item>
+        <item>radiate</item>
+        <item>tennis</item>
+        <item>plot</item>
+        <item>scribble</item>
+        <item>Wave</item>
+        <item>Heartbeat</item>
+        <item>Strobe</item>
+        <item>Bounce</item>
+        <item>Sparkle</item>
+        <item>Zigzag</item>
+        <item>Symphony</item>
+        <item>Crescendo</item>
+        <item>Marimba</item>
+        <item>Sweep</item>
+        <item>Fade</item>
+        <item>Knight Rider</item>
+        <item>Twinkle</item>
+        <item>Radar</item>
+        <item>Metronome</item>
+        <item>Sizzle</item>
+        <item>Ping</item>
+        <item>Fireflies</item>
+        <item>Spotlight</item>
+        <item>Scanline</item>
+        <item>Spiral</item>
+        <item>Raindrops</item>
+        <item>Heartbeat Rapid</item>
+        <item>Blink Sync</item>
+        <item>Sequence Run</item>
+        <item>Chaos</item>
+        <item>Aurora</item>
+    </string-array>
+</resources>
