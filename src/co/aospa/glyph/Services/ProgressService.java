@@ -28,6 +28,7 @@ import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.IBinder;
 import android.os.Looper;
+import android.os.PowerManager;
 import android.util.Log;
 
 import co.aospa.glyph.Manager.AnimationManager;
@@ -55,6 +56,7 @@ public class ProgressService extends Service {
     private Context mContext;
 
     private MediaSessionManager mMediaSessionManager;
+    private PowerManager mPowerManager;
 
     private Map<String, ProgressInfo> mActiveProgress = new HashMap<>();
     private int mLastDisplayedProgress = -1;
@@ -111,6 +113,7 @@ public class ProgressService extends Service {
         mThreadHandler = new Handler(looper);
 
         mMediaSessionManager = (MediaSessionManager) getSystemService(Context.MEDIA_SESSION_SERVICE);
+        mPowerManager = (PowerManager) getSystemService(Context.POWER_SERVICE);
 
         IntentFilter progressFilter = new IntentFilter();
         progressFilter.addAction(ACTION_PROGRESS_NOTIFICATION);
@@ -333,6 +336,13 @@ public class ProgressService extends Service {
                 if (!StatusManager.isFlipped()) {
                     if (DEBUG)
                         Log.d(TAG, "Indicators restricted to flip-only and device not flipped, ignoring");
+                    return;
+                }
+            }
+            if (SettingsManager.isGlyphProgressScreenOffOnly() && mPowerManager != null) {
+                if (mPowerManager.isInteractive()) {
+                    if (DEBUG)
+                        Log.d(TAG, "Progress restricted to screen off only and screen is on, ignoring");
                     return;
                 }
             }

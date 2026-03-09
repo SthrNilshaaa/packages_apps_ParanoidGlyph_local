@@ -27,6 +27,7 @@ import android.os.IBinder;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.Looper;
+import android.os.PowerManager;
 import android.util.Log;
 
 import co.aospa.glyph.Manager.AnimationManager;
@@ -45,6 +46,7 @@ public class VolumeLevelService extends Service {
     private Context mContext;
 
     private AudioManager audioManager;
+    private PowerManager mPowerManager;
     private Runnable dismissVolume = new Runnable() {
         @Override
         public void run() {
@@ -65,7 +67,8 @@ public class VolumeLevelService extends Service {
         Looper looper = thread.getLooper();
         mThreadHandler = new Handler(looper);
 
-        audioManager = (AudioManager) getSystemService(AudioManager.class);
+        audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+        mPowerManager = (PowerManager) getSystemService(Context.POWER_SERVICE);
         mVolumeChangeReceiver = new VolumeChangeReceiver();
         registerReceiver(mVolumeChangeReceiver, new IntentFilter("android.media.VOLUME_CHANGED_ACTION"));
     }
@@ -129,6 +132,15 @@ public class VolumeLevelService extends Service {
                                     return;
                                 }
                             }
+
+                            if (SettingsManager.isGlyphVolumeScreenOffOnly() && mPowerManager != null) {
+                                if (mPowerManager.isInteractive()) {
+                                    if (DEBUG)
+                                        Log.d(TAG, "Volume restricted to screen off only and screen is on, ignoring");
+                                    return;
+                                }
+                            }
+
                             AnimationManager.playVolume(VolumeLevelService.this, currentVolumePercent, false);
                         });
                         mThreadHandler.postDelayed(dismissVolume, 3000);

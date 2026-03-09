@@ -165,8 +165,11 @@
     <string name="import_warning">Please disable your system default ringtone and notification sound to prevent overlapping audio if you use an imported custom ringtone.\n\nDownload custom ringtones at:\nhttps://glyphtones.firu.dev/</string>
     <string name="ring_notif_haptics_title">Ringtone &amp; Notification Haptics</string>
     <string name="ring_notif_haptics_desc">Synced haptic feedback for custom ringtone and notification patterns</string>
+    <string name="audio_mute_toggle">Mute imported ringtones audio playback</string>
     <string name="volume_flip_only_title">Shows when device flipped</string>
     <string name="volume_flip_only_desc">Only visualize volume on LEDs when phone is face down</string>
+    <string name="volume_screen_off_only_title">Shows only when screen off</string>
+    <string name="volume_screen_off_only_desc">Only visualize volume on LEDs when the phone screen is turned off</string>
     <string name="delete_confirm_title">Delete Custom Ringtone?</string>
     <string name="delete_confirm_message">Are you sure you want to delete this imported ringtone? This action cannot be undone.</string>
     <string name="delete">Delete</string>
@@ -178,8 +181,14 @@
     <string name="charging_flip_only_desc">Show charging level ONLY when the device is face down.</string>
     <string name="progress_flip_only_title">Progress Flip Only</string>
     <string name="progress_flip_only_desc">Only visualize progress on LEDs when phone is face down</string>
+    <string name="progress_screen_off_only_title">Shows only when screen off</string>
+    <string name="progress_screen_off_only_desc">Only visualize progress on LEDs when the phone screen is turned off</string>
     <string name="shake_to_glyph_title">Shake to toggle torch</string>
     <string name="shake_to_glyph_desc">Shake the phone to toggle the Glyph torch (essential light)</string>
+    <string name="shake_while_screen_on_title">Allow while screen is on</string>
+    <string name="shake_while_screen_on_desc">Allow shake to toggle torch even when the screen is turned on</string>
+    <string name="shake_allow_in_sleep_title">Allow in sleep mode</string>
+    <string name="shake_allow_in_sleep_desc">Allow shake to toggle torch even during scheduled sleep mode</string>
     <string name="music_visualizer_flip_only_title">Shows when device flipped</string>
     <string name="music_visualizer_flip_only_desc">Only visualize music on LEDs when phone is face down</string>
 
@@ -298,4 +307,7 @@
         <item>Chaos</item>
         <item>Aurora</item>
     </string-array>
+
+    <string name="glyph_settings_notifs_clear_on_unlock_title">Clear on unlock</string>
+    <string name="glyph_settings_notifs_clear_on_unlock_summary">Turn off essential lights when the device is unlocked</string>
 </resources>

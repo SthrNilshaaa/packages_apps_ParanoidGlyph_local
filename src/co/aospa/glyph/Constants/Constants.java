@@ -90,6 +90,8 @@ public final class Constants {
     public static final String GLYPH_AUTO_BRIGHTNESS_ENABLE = "glyph_settings_auto_brightness_toggle";
     /** Key for shake device for torch toggle. */
     public static final String GLYPH_SHAKE_TORCH_ENABLE = "glyph_settings_shake_torch_toggle";
+    public static final String GLYPH_SHAKE_WHILE_SCREEN_ON = "glyph_settings_shake_screen_on";
+    public static final String GLYPH_SHAKE_ALLOW_IN_SLEEP = "glyph_settings_shake_allow_sleep";
     /** Key for shake torch sensitivity setting. */
     public static final String GLYPH_SHAKE_SENSITIVITY = "glyph_settings_shake_sensitivity";
     /** Key for the number of required shakes. */
@@ -110,8 +112,8 @@ public final class Constants {
     public static final String GLYPH_PROGRESS_MUSIC_ENABLE = "glyph_settings_progress_music_toggle";
     /** Key for general progress indicator toggle. */
     public static final String GLYPH_PROGRESS_ENABLE = "glyph_settings_progress_toggle";
-    /** Key for progress flip only toggle. */
     public static final String GLYPH_PROGRESS_FLIP_ONLY = "glyph_progress_flip_only";
+    public static final String GLYPH_PROGRESS_SCREEN_OFF_ONLY = "glyph_settings_progress_screen_off_only";
     public static final String GLYPH_CHARGING_FLIP_ONLY = "glyph_charging_flip_only";
     public static final String GLYPH_MUSIC_VISUALIZER_FLIP_ONLY = "glyph_music_visualizer_flip_only";
 
@@ -121,8 +123,13 @@ public final class Constants {
     public static final String GLYPH_NOTIF_HAPTIC_STRENGTH = "glyph_settings_notif_haptic_strength";
     /** Key for volume flip only toggle. */
     public static final String GLYPH_VOLUME_FLIP_ONLY = "glyph_settings_volume_flip_only";
+    /** Key for disabling animation when screen is on. */
+    public static final String GLYPH_NOTIFS_CLEAR_ON_UNLOCK = "glyph_settings_notifs_clear_on_unlock";
+    public static final String GLYPH_VOLUME_SCREEN_OFF_ONLY = "glyph_settings_volume_screen_off_only";
     /** Key for indicators flip only toggle. */
     public static final String GLYPH_INDICATORS_FLIP_ONLY = "glyph_settings_indicators_flip_only";
+    /** Key for audio mute custom ringtones toggle. */
+    public static final String GLYPH_AUDIO_MUTE_ENABLE = "glyph_settings_audio_mute_enable";
 
     /** Array of package names to ignore for Glyph interactions. */
     public static final String[] APPS_TO_IGNORE = {

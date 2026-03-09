@@ -51,16 +51,17 @@ public class SettingsFragment extends Fragment implements StyleAdapter.SharedPre
 
     private MaterialSwitch switchMaster, switchFlip, switchScreenOff, switchAssistantMic,
             switchBatteryBar, switchVolumeBar, switchRingNotifHaptics, switchVolumeFlipOnly,
-            switchShake, switchMusicVisualizer, switchProgress, switchProgressMusic,
-            switchIndicatorsFlipOnly, switchProgressFlipOnly, switchMusicVisualizerFlipOnly,
-            switchChargingFlipOnly;
+            switchVolumeScreenOffOnly, switchShake, switchMusicVisualizer, switchProgress, switchProgressMusic,
+            switchIndicatorsFlipOnly, switchProgressFlipOnly, switchProgressScreenOffOnly, switchMusicVisualizerFlipOnly,
+            switchChargingFlipOnly, switchChargingPowershare, switchAudioMute,
+            switchShakeScreenOn, switchShakeAllowSleep;
     private Slider sliderBrightness, sliderShakeSensitivity, sliderShakeHapticStrength, sliderRingNotifHapticStrength;
     private MaterialCardView cardRingtones, cardNotifications, cardFlipStyle, cardEssentialLights, cardImport,
             cardShakeToGlyph;
     private TextView textCurrentCallStyle, textCurrentNotifStyle, textCurrentFlipStyle, textImportWarning;
-    private LinearLayout layoutRingNotifHapticStrength, layoutVolumeFlipOnly, layoutShakeSettings,
-            layoutMusicVisualizerFlipOnly, layoutProgressMusic, layoutProgressFlipOnly,
-            layoutChargingFlipOnly;
+    private LinearLayout layoutRingNotifHapticStrength, layoutVolumeFlipOnly, layoutVolumeScreenOffOnly, layoutShakeSettings,
+            layoutMusicVisualizerFlipOnly, layoutProgressMusic, layoutProgressFlipOnly, layoutProgressScreenOffOnly,
+            layoutChargingFlipOnly, layoutChargingPowershare;
     private RadioGroup rgShakeCount;
     private ImageView spacewar;
     private RecyclerView rvCallStyles, rvNotifStyles;
@@ -99,6 +100,7 @@ public class SettingsFragment extends Fragment implements StyleAdapter.SharedPre
         textImportWarning = view.findViewById(R.id.textImportWarning);
 
         switchRingNotifHaptics = view.findViewById(R.id.switchRingNotifHaptics);
+        switchAudioMute = view.findViewById(R.id.switchAudioMute);
         layoutRingNotifHapticStrength = view.findViewById(R.id.layoutRingNotifHapticStrength);
         sliderRingNotifHapticStrength = view.findViewById(R.id.sliderRingNotifHapticStrength);
 
@@ -111,6 +113,8 @@ public class SettingsFragment extends Fragment implements StyleAdapter.SharedPre
 
         cardShakeToGlyph = view.findViewById(R.id.cardShakeToGlyph);
         switchShake = view.findViewById(R.id.switchShake);
+        switchShakeScreenOn = view.findViewById(R.id.switchShakeScreenOn);
+        switchShakeAllowSleep = view.findViewById(R.id.switchShakeAllowSleep);
         layoutShakeSettings = view.findViewById(R.id.layoutShakeSettings);
         sliderShakeSensitivity = view.findViewById(R.id.seekBar_sensitivity);
         sliderShakeHapticStrength = view.findViewById(R.id.seekBar_haptic_strength);
@@ -120,9 +124,13 @@ public class SettingsFragment extends Fragment implements StyleAdapter.SharedPre
         switchBatteryBar = view.findViewById(R.id.switchBatteryBar);
         layoutChargingFlipOnly = view.findViewById(R.id.layoutChargingFlipOnly);
         switchChargingFlipOnly = view.findViewById(R.id.switchChargingFlipOnly);
+        layoutChargingPowershare = view.findViewById(R.id.layoutChargingPowershare);
+        switchChargingPowershare = view.findViewById(R.id.switchChargingPowershare);
         switchVolumeBar = view.findViewById(R.id.switchVolumeBar);
         layoutVolumeFlipOnly = view.findViewById(R.id.layoutVolumeFlipOnly);
         switchVolumeFlipOnly = view.findViewById(R.id.switchVolumeFlipOnly);
+        layoutVolumeScreenOffOnly = view.findViewById(R.id.layoutVolumeScreenOffOnly);
+        switchVolumeScreenOffOnly = view.findViewById(R.id.switchVolumeScreenOffOnly);
 
         switchMusicVisualizer = view.findViewById(R.id.switchMusicVisualizer);
         layoutMusicVisualizerFlipOnly = view.findViewById(R.id.layoutMusicVisualizerFlipOnly);
@@ -133,6 +141,8 @@ public class SettingsFragment extends Fragment implements StyleAdapter.SharedPre
         switchProgressMusic = view.findViewById(R.id.switchProgressMusic);
         layoutProgressFlipOnly = view.findViewById(R.id.layoutProgressFlipOnly);
         switchProgressFlipOnly = view.findViewById(R.id.switchProgressFlipOnly);
+        layoutProgressScreenOffOnly = view.findViewById(R.id.layoutProgressScreenOffOnly);
+        switchProgressScreenOffOnly = view.findViewById(R.id.switchProgressScreenOffOnly);
 
         switchIndicatorsFlipOnly = view.findViewById(R.id.switchIndicatorsFlipOnly);
 
@@ -148,6 +158,7 @@ public class SettingsFragment extends Fragment implements StyleAdapter.SharedPre
         updateOutlineAlpha(sliderBrightness.getValue());
 
         switchRingNotifHaptics.setChecked(SettingsManager.isGlyphNotifHapticsEnabled());
+        switchAudioMute.setChecked(SettingsManager.isGlyphAudioMuteEnabled());
         sliderRingNotifHapticStrength.setValue(SettingsManager.getGlyphNotifHapticStrength());
         layoutRingNotifHapticStrength.setVisibility(switchRingNotifHaptics.isChecked() ? View.VISIBLE : View.GONE);
 
@@ -155,6 +166,8 @@ public class SettingsFragment extends Fragment implements StyleAdapter.SharedPre
         switchScreenOff.setChecked(SettingsManager.isGlyphScreenOffOnly());
 
         switchShake.setChecked(SettingsManager.isGlyphShakeTorchEnabled());
+        switchShakeScreenOn.setChecked(SettingsManager.isGlyphShakeWhileScreenOnEnabled());
+        switchShakeAllowSleep.setChecked(SettingsManager.isGlyphShakeAllowInSleepEnabled());
         sliderShakeSensitivity.setValue(SettingsManager.getGlyphShakeSensitivity());
         sliderShakeHapticStrength.setValue(SettingsManager.getGlyphShakeHapticIntensity());
         int shakeCount = SettingsManager.getGlyphShakeCount();
@@ -169,11 +182,15 @@ public class SettingsFragment extends Fragment implements StyleAdapter.SharedPre
         switchAssistantMic.setChecked(false); // Not implemented yet in backend as per main project
         switchBatteryBar.setChecked(SettingsManager.isGlyphChargingLevelEnabled());
         switchChargingFlipOnly.setChecked(SettingsManager.isGlyphChargingFlipOnly());
+        switchChargingPowershare.setChecked(SettingsManager.isGlyphPowershareEnabled());
         layoutChargingFlipOnly.setVisibility(switchBatteryBar.isChecked() ? View.VISIBLE : View.GONE);
+        layoutChargingPowershare.setVisibility(switchBatteryBar.isChecked() ? View.VISIBLE : View.GONE);
 
         switchVolumeBar.setChecked(SettingsManager.isGlyphVolumeLevelEnabled());
         switchVolumeFlipOnly.setChecked(SettingsManager.isGlyphVolumeFlipOnly());
+        switchVolumeScreenOffOnly.setChecked(SettingsManager.isGlyphVolumeScreenOffOnly());
         layoutVolumeFlipOnly.setVisibility(switchVolumeBar.isChecked() ? View.VISIBLE : View.GONE);
+        layoutVolumeScreenOffOnly.setVisibility(switchVolumeBar.isChecked() ? View.VISIBLE : View.GONE);
 
         switchMusicVisualizer.setChecked(SettingsManager.isGlyphMusicVisualizerEnabled());
         switchMusicVisualizerFlipOnly.setChecked(SettingsManager.isGlyphMusicVisualizerFlipOnly());
@@ -182,8 +199,10 @@ public class SettingsFragment extends Fragment implements StyleAdapter.SharedPre
         switchProgress.setChecked(SettingsManager.isGlyphProgressEnabled());
         switchProgressMusic.setChecked(SettingsManager.isGlyphProgressMusicEnabled());
         switchProgressFlipOnly.setChecked(SettingsManager.isGlyphProgressFlipOnly());
+        switchProgressScreenOffOnly.setChecked(SettingsManager.isGlyphProgressScreenOffOnly());
         layoutProgressMusic.setVisibility(switchProgress.isChecked() ? View.VISIBLE : View.GONE);
         layoutProgressFlipOnly.setVisibility(switchProgress.isChecked() ? View.VISIBLE : View.GONE);
+        layoutProgressScreenOffOnly.setVisibility(switchProgress.isChecked() ? View.VISIBLE : View.GONE);
 
         switchIndicatorsFlipOnly.setChecked(SettingsManager.isGlyphIndicatorsFlipOnly());
 
@@ -218,6 +237,11 @@ public class SettingsFragment extends Fragment implements StyleAdapter.SharedPre
             quickTick(20, 100);
             SettingsManager.setGlyphNotifHapticsEnabled(isChecked);
             layoutRingNotifHapticStrength.setVisibility(isChecked ? View.VISIBLE : View.GONE);
+        });
+
+        switchAudioMute.setOnCheckedChangeListener((v, isChecked) -> {
+            quickTick(20, 100);
+            SettingsManager.setGlyphAudioMuteEnabled(isChecked);
         });
 
         sliderRingNotifHapticStrength.addOnChangeListener((s, value, fromUser) -> {
@@ -257,6 +281,9 @@ public class SettingsFragment extends Fragment implements StyleAdapter.SharedPre
             }, 100);
         });
 
+        switchShakeScreenOn.setOnCheckedChangeListener((v, isChecked) -> SettingsManager.setGlyphShakeWhileScreenOnEnabled(isChecked));
+        switchShakeAllowSleep.setOnCheckedChangeListener((v, isChecked) -> SettingsManager.setGlyphShakeAllowInSleepEnabled(isChecked));
+
         sliderShakeSensitivity.addOnChangeListener((s, value, fromUser) -> {
             if (fromUser)
                 SettingsManager.setGlyphShakeSensitivity((int) value);
@@ -292,25 +319,34 @@ public class SettingsFragment extends Fragment implements StyleAdapter.SharedPre
         switchBatteryBar.setOnCheckedChangeListener((v, isChecked) -> {
             SettingsManager.setGlyphChargingLevelEnabled(isChecked);
             layoutChargingFlipOnly.setVisibility(isChecked ? View.VISIBLE : View.GONE);
+            layoutChargingPowershare.setVisibility(isChecked ? View.VISIBLE : View.GONE);
             mHandler.post(ServiceUtils::checkGlyphService);
         });
 
         switchChargingFlipOnly
                 .setOnCheckedChangeListener((v, isChecked) -> SettingsManager.setGlyphChargingFlipOnly(isChecked));
+        
+        switchChargingPowershare
+                .setOnCheckedChangeListener((v, isChecked) -> SettingsManager.setGlyphChargingPowershareEnabled(isChecked));
 
         switchVolumeBar.setOnCheckedChangeListener((v, isChecked) -> {
             SettingsManager.setGlyphVolumeLevelEnabled(isChecked);
             layoutVolumeFlipOnly.setVisibility(isChecked ? View.VISIBLE : View.GONE);
+            layoutVolumeScreenOffOnly.setVisibility(isChecked ? View.VISIBLE : View.GONE);
             mHandler.post(ServiceUtils::checkGlyphService);
         });
 
         switchVolumeFlipOnly
                 .setOnCheckedChangeListener((v, isChecked) -> SettingsManager.setGlyphVolumeFlipOnly(isChecked));
 
+        switchVolumeScreenOffOnly
+                .setOnCheckedChangeListener((v, isChecked) -> SettingsManager.setGlyphVolumeScreenOffOnly(isChecked));
+
         switchProgress.setOnCheckedChangeListener((v, isChecked) -> {
             SettingsManager.setGlyphProgressEnabled(isChecked);
             layoutProgressMusic.setVisibility(isChecked ? View.VISIBLE : View.GONE);
             layoutProgressFlipOnly.setVisibility(isChecked ? View.VISIBLE : View.GONE);
+            layoutProgressScreenOffOnly.setVisibility(isChecked ? View.VISIBLE : View.GONE);
             mHandler.post(ServiceUtils::checkGlyphService);
         });
 
@@ -319,6 +355,9 @@ public class SettingsFragment extends Fragment implements StyleAdapter.SharedPre
 
         switchProgressFlipOnly
                 .setOnCheckedChangeListener((v, isChecked) -> SettingsManager.setGlyphProgressFlipOnly(isChecked));
+        
+        switchProgressScreenOffOnly
+                .setOnCheckedChangeListener((v, isChecked) -> SettingsManager.setGlyphProgressScreenOffOnly(isChecked));
 
         switchMusicVisualizer.setOnCheckedChangeListener((v, isChecked) -> {
             SettingsManager.setGlyphMusicVisualizerEnabled(isChecked);

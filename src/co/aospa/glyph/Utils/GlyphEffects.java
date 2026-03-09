@@ -131,7 +131,9 @@ public class GlyphEffects {
             }
             activePlayer.setAudioAttributes(attrBuilder.build());
             activePlayer.prepare();
-            activePlayer.start();
+            if (!co.aospa.glyph.Manager.SettingsManager.isGlyphAudioMuteEnabled()) {
+                activePlayer.start();
+            }
 
             if (timeline != null) {
                 new Thread(() -> {

@@ -137,6 +137,40 @@ public final class SettingsManager {
                 .putBoolean(Constants.GLYPH_CHARGING_LEVEL_ENABLE, enable).apply();
     }
 
+    public static void setGlyphChargingPowershareEnabled(boolean enable) {
+        Context ctx = getContext();
+        PreferenceManager.getDefaultSharedPreferences(ctx).edit()
+                .putBoolean(Constants.GLYPH_CHARGING_POWERSHARE_ENABLE, enable).apply();
+    }
+
+
+    public static boolean isGlyphProgressScreenOffOnly() {
+        return PreferenceManager.getDefaultSharedPreferences(getContext())
+                .getBoolean(Constants.GLYPH_PROGRESS_SCREEN_OFF_ONLY, false);
+    }
+    
+    public static boolean isGlyphNotifsSubEssentialEnabled() {
+        return PreferenceManager.getDefaultSharedPreferences(getContext())
+                .getBoolean(Constants.GLYPH_NOTIFS_SUB_ESSENTIAL, false);
+    }
+    
+    public static boolean isGlyphNotifsClearOnUnlockEnabled() {
+        return PreferenceManager.getDefaultSharedPreferences(getContext())
+                .getBoolean(Constants.GLYPH_NOTIFS_CLEAR_ON_UNLOCK, true); // True by default for dGlyphs parity
+    }
+
+    public static boolean isGlyphAudioMuteEnabled() {
+        Context ctx = getContext();
+        return PreferenceManager.getDefaultSharedPreferences(ctx)
+                .getBoolean(Constants.GLYPH_AUDIO_MUTE_ENABLE, false);
+    }
+
+    public static void setGlyphAudioMuteEnabled(boolean enable) {
+        Context ctx = getContext();
+        PreferenceManager.getDefaultSharedPreferences(ctx).edit()
+                .putBoolean(Constants.GLYPH_AUDIO_MUTE_ENABLE, enable).apply();
+    }
+
     public static boolean isGlyphCallEnabled() {
         Context ctx = getContext();
         return Settings.Secure.getInt(ctx.getContentResolver(),
@@ -160,6 +194,30 @@ public final class SettingsManager {
         Context ctx = getContext();
         return PreferenceManager.getDefaultSharedPreferences(ctx)
                 .getBoolean(Constants.GLYPH_MUSIC_VISUALIZER_ENABLE, false) && isGlyphEnabled();
+    }
+
+    public static boolean isGlyphShakeWhileScreenOnEnabled() {
+        Context ctx = getContext();
+        return PreferenceManager.getDefaultSharedPreferences(ctx)
+                .getBoolean(Constants.GLYPH_SHAKE_WHILE_SCREEN_ON, false);
+    }
+
+    public static void setGlyphShakeWhileScreenOnEnabled(boolean enable) {
+        Context ctx = getContext();
+        PreferenceManager.getDefaultSharedPreferences(ctx).edit()
+                .putBoolean(Constants.GLYPH_SHAKE_WHILE_SCREEN_ON, enable).apply();
+    }
+
+    public static boolean isGlyphShakeAllowInSleepEnabled() {
+        Context ctx = getContext();
+        return PreferenceManager.getDefaultSharedPreferences(ctx)
+                .getBoolean(Constants.GLYPH_SHAKE_ALLOW_IN_SLEEP, false);
+    }
+
+    public static void setGlyphShakeAllowInSleepEnabled(boolean enable) {
+        Context ctx = getContext();
+        PreferenceManager.getDefaultSharedPreferences(ctx).edit()
+                .putBoolean(Constants.GLYPH_SHAKE_ALLOW_IN_SLEEP, enable).apply();
     }
 
     public static boolean isGlyphVolumeLevelEnabled() {
@@ -324,10 +382,28 @@ public final class SettingsManager {
                 .putBoolean(Constants.GLYPH_VOLUME_FLIP_ONLY, enable).apply();
     }
 
+    public static boolean isGlyphVolumeScreenOffOnly() {
+        Context ctx = getContext();
+        return PreferenceManager.getDefaultSharedPreferences(ctx)
+                .getBoolean(Constants.GLYPH_VOLUME_SCREEN_OFF_ONLY, false);
+    }
+
+    public static void setGlyphVolumeScreenOffOnly(boolean enable) {
+        Context ctx = getContext();
+        PreferenceManager.getDefaultSharedPreferences(ctx).edit()
+                .putBoolean(Constants.GLYPH_VOLUME_SCREEN_OFF_ONLY, enable).apply();
+    }
+
     public static void setGlyphProgressFlipOnly(boolean enable) {
         Context ctx = getContext();
         PreferenceManager.getDefaultSharedPreferences(ctx).edit()
                 .putBoolean(Constants.GLYPH_PROGRESS_FLIP_ONLY, enable).apply();
+    }
+
+    public static void setGlyphProgressScreenOffOnly(boolean enable) {
+        Context ctx = getContext();
+        PreferenceManager.getDefaultSharedPreferences(ctx).edit()
+                .putBoolean(Constants.GLYPH_PROGRESS_SCREEN_OFF_ONLY, enable).apply();
     }
 
     public static void setGlyphMusicVisualizerFlipOnly(boolean enable) {

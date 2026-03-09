@@ -53,8 +53,16 @@ public class ChargingService extends Service {
     private PowerManager mPowerManager;
 
     private Sensor mAccelerometerSensor;
-    private static final float ACCELEROMETER_THRESHOLD = 10.0f;
-    private static final float ZFACEDOWN_THRESHOLD = -5.0f;
+    private Sensor mProximitySensor;
+    
+    private boolean mIsProximityCovered;
+    private boolean mIsFaceDown;
+    private float mLastX, mLastY, mLastZ;
+    private boolean mHasLastAccel;
+    
+    private long mLastAnimationTime = 0;
+    private static final long DEBOUNCE_INTERVAL_MS = 3000;
+    private static final float ZFACEDOWN_THRESHOLD = -8.0f;
 
     private Runnable dismissCharging = new Runnable() {
         @Override
@@ -79,6 +87,7 @@ public class ChargingService extends Service {
         mPowerManager = (PowerManager) getSystemService(Context.POWER_SERVICE);
 
         mAccelerometerSensor = mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
+        mProximitySensor = mSensorManager.getDefaultSensor(Sensor.TYPE_PROXIMITY);
 
         IntentFilter powerMonitor = new IntentFilter();
         powerMonitor.addAction(Intent.ACTION_POWER_CONNECTED);
@@ -128,6 +137,10 @@ public class ChargingService extends Service {
         playChargingAnimation(true);
         mSensorManager.registerListener(mSensorEventListener,
                 mAccelerometerSensor, SensorManager.SENSOR_DELAY_NORMAL);
+        if (mProximitySensor != null) {
+            mSensorManager.registerListener(mSensorEventListener,
+                    mProximitySensor, SensorManager.SENSOR_DELAY_NORMAL);
+        }
     }
 
     private void onPowerDisconnected() {
@@ -166,13 +179,34 @@ public class ChargingService extends Service {
     private final SensorEventListener mSensorEventListener = new SensorEventListener() {
         @Override
         public void onSensorChanged(SensorEvent event) {
-            float x = event.values[0];
-            float y = event.values[1];
-            float z = event.values[2];
-            float acceleration = (float) Math.sqrt(x * x + y * y + z * z);
+            if (event.sensor.getType() == Sensor.TYPE_ACCELEROMETER) {
+                float x = event.values[0];
+                float y = event.values[1];
+                float z = event.values[2];
+                
+                mIsFaceDown = z < ZFACEDOWN_THRESHOLD;
 
-            if (acceleration > ACCELEROMETER_THRESHOLD && z <= ZFACEDOWN_THRESHOLD && !mPowerManager.isInteractive()) {
-                playChargingAnimation(false);
+                if (mHasLastAccel) {
+                    float deltaX = Math.abs(x - mLastX);
+                    float deltaY = Math.abs(y - mLastY);
+                    float deltaZ = Math.abs(z - mLastZ);
+                    float totalDelta = deltaX + deltaY + deltaZ;
+
+                    if (totalDelta > 0.15f && mIsFaceDown && mIsProximityCovered && mPowerManager != null && !mPowerManager.isInteractive()) {
+                        long now = System.currentTimeMillis();
+                        if (now - mLastAnimationTime > DEBOUNCE_INTERVAL_MS) {
+                            mLastAnimationTime = now;
+                            playChargingAnimation(false);
+                        }
+                    }
+                }
+
+                mLastX = x;
+                mLastY = y;
+                mLastZ = z;
+                mHasLastAccel = true;
+            } else if (event.sensor.getType() == Sensor.TYPE_PROXIMITY) {
+                mIsProximityCovered = event.values[0] < event.sensor.getMaximumRange();
             }
         }
 

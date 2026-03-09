@@ -37,6 +37,7 @@ import android.widget.Toast;
 import androidx.preference.PreferenceManager;
 
 import co.aospa.glyph.Constants.Constants;
+import co.aospa.glyph.Manager.GlyphScheduleManager;
 import co.aospa.glyph.Manager.SettingsManager;
 import co.aospa.glyph.Manager.StatusManager;
 import co.aospa.glyph.Utils.FileUtils;
@@ -59,9 +60,16 @@ public class ShakeDetectorService extends Service implements SensorEventListener
     private Sensor mProximitySensor;
     private SharedPreferences mSharedPrefs;
     private PowerManager.WakeLock mWakeLock;
+    private PowerManager mPowerManager;
     private Vibrator mVibrator;
 
     private boolean mProximityBlocked = false;
+
+    // --- PRO SHAKE DETECTION VARIABLES ---
+    private long firstShakeSequenceTime = 0;
+    private float[] gravity = new float[3];
+    private static final int MIN_TIME_BETWEEN_SHAKES_MS = 350;
+    private static final int MAX_TIME_BETWEEN_SHAKES_MS = 1500;
 
     private long mLastShakeTime = 0;
     private int mShakeCount = 0;
@@ -82,8 +90,8 @@ public class ShakeDetectorService extends Service implements SensorEventListener
         mSharedPrefs = PreferenceManager.getDefaultSharedPreferences(this);
         mVibrator = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
 
-        PowerManager powerManager = (PowerManager) getSystemService(Context.POWER_SERVICE);
-        mWakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, TAG + ":ShakeWakeLock");
+        mPowerManager = (PowerManager) getSystemService(Context.POWER_SERVICE);
+        mWakeLock = mPowerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, TAG + ":ShakeWakeLock");
 
         loadSettings();
 
@@ -114,7 +122,13 @@ public class ShakeDetectorService extends Service implements SensorEventListener
     }
 
     private void loadSettings() {
-        mCurrentThreshold = (float) SettingsManager.getGlyphShakeSensitivity();
+        // Range provided by user: 2.5f -> 8.0f (Mapped from 0-100)
+        int progress = SettingsManager.getGlyphShakeSensitivity();
+        float minThreshold = 2.5f;
+        float maxThreshold = 8.0f;
+        float range = maxThreshold - minThreshold;
+        mCurrentThreshold = maxThreshold - ((progress / 100f) * range);
+
         mRequiredShakes = SettingsManager.getGlyphShakeCount();
         mHapticIntensity = SettingsManager.getGlyphShakeHapticIntensity();
 
@@ -163,36 +177,72 @@ public class ShakeDetectorService extends Service implements SensorEventListener
             return;
         }
 
-        // Allow shake even during schedule (for torch)
+        // Check if Shake is enabled and Glyph is generally enabled
         if (!isShakeEnabled() || !SettingsManager.isGlyphEnabledIgnoreSchedule()) {
             return;
         }
 
-        float x = event.values[0];
-        float y = event.values[1];
-        float z = event.values[2];
+        // Check if Schedule (Sleep Mode) is active and block if exception is not allowed
+        if (GlyphScheduleManager.isScheduleCurrentlyActive(this) && 
+            !SettingsManager.isGlyphShakeAllowInSleepEnabled()) {
+            return;
+        }
 
-        float acceleration = (float) Math.sqrt(x * x + y * y + z * z) - SensorManager.GRAVITY_EARTH;
+        if (mPowerManager != null && mPowerManager.isInteractive()
+                && !SettingsManager.isGlyphShakeWhileScreenOnEnabled()) {
+            return;
+        }
 
-        if (acceleration > mCurrentThreshold) {
-            long currentTime = SystemClock.elapsedRealtime();
+        if (mProximityBlocked) return;
 
-            if (currentTime - mLastShakeTime < SHAKE_TIME_WINDOW) {
-                mShakeCount++;
-                if (DEBUG)
-                    Log.d(TAG, "Shake detected, count: " + mShakeCount + ", accel: " + acceleration);
+        final float alpha = 0.8f;
+        gravity[0] = alpha * gravity[0] + (1 - alpha) * event.values[0];
+        gravity[1] = alpha * gravity[1] + (1 - alpha) * event.values[1];
+        gravity[2] = alpha * gravity[2] + (1 - alpha) * event.values[2];
 
-                if (mShakeCount >= mRequiredShakes) {
-                    onShakeDetected();
-                    mShakeCount = 0;
-                }
-            } else {
-                mShakeCount = 1;
-                if (DEBUG)
-                    Log.d(TAG, "First shake detected, accel: " + acceleration);
+        float x = event.values[0] - gravity[0];
+        float y = event.values[1] - gravity[1];
+        float z = event.values[2] - gravity[2];
+
+        float gX = x / SensorManager.GRAVITY_EARTH;
+        float gY = y / SensorManager.GRAVITY_EARTH;
+        float gZ = z / SensorManager.GRAVITY_EARTH;
+
+        float gForce = (float) Math.sqrt(gX * gX + gY * gY + gZ * gZ);
+
+        float pureMovementThreshold = mCurrentThreshold - 1.0f;
+        if (pureMovementThreshold < 0.3f)
+            pureMovementThreshold = 0.3f;
+
+        if (gForce > pureMovementThreshold) {
+            long now = SystemClock.elapsedRealtime();
+
+            if (now - mLastShakeTime < MIN_TIME_BETWEEN_SHAKES_MS) {
+                return;
             }
 
-            mLastShakeTime = currentTime;
+            if (mShakeCount == 0 || now - mLastShakeTime > MAX_TIME_BETWEEN_SHAKES_MS) {
+                mShakeCount = 0;
+                firstShakeSequenceTime = now;
+            }
+
+            if (now - firstShakeSequenceTime > 2000) {
+                mShakeCount = 0;
+                firstShakeSequenceTime = now;
+            }
+
+            mLastShakeTime = now;
+            mShakeCount++;
+
+            if (DEBUG)
+                Log.d(TAG, "Shake detected, count: " + mShakeCount + ", accel: " + gForce);
+
+            if (mShakeCount >= mRequiredShakes) {
+                onShakeDetected();
+                mShakeCount = 0;
+                firstShakeSequenceTime = 0;
+                gravity = new float[3]; // Reset filter
+            }
         }
     }
 

@@ -42,6 +42,12 @@
                 android:targetClass="co.aospa.glyph.Settings.EssentialSettingsActivity"/>
         </Preference>
 
+        <SwitchPreferenceCompat
+            android:key="glyph_settings_notifs_clear_on_unlock"
+            android:title="@string/glyph_settings_notifs_clear_on_unlock_title"
+            android:summary="@string/glyph_settings_notifs_clear_on_unlock_summary"
+            android:defaultValue="true" />
+
         <PreferenceCategory
             android:key="glyph_settings_notifs_sub"
             android:title="@string/glyph_settings_notifs_sub_title" />

@@ -56,6 +56,9 @@ public class NotificationService extends NotificationListenerService
 
     private SharedPreferences mSharedPreferences;
 
+    private final java.util.Set<String> mIgnoredEssentialKeys = new java.util.HashSet<>();
+    private BroadcastReceiver mUnlockReceiver;
+
     @Override
     public void onCreate() {
         if (DEBUG) Log.d(TAG, "Creating service");
@@ -67,6 +70,27 @@ public class NotificationService extends NotificationListenerService
         mSettingObserver.register(mContentResolver);
         mSharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
         mSharedPreferences.registerOnSharedPreferenceChangeListener(this);
+        
+        mUnlockReceiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                if (Intent.ACTION_USER_PRESENT.equals(intent.getAction())) {
+                    if (SettingsManager.isGlyphNotifsClearOnUnlockEnabled()) {
+                        StatusBarNotification[] activeNotifications = getActiveNotifications();
+                        if (activeNotifications != null) {
+                            for (StatusBarNotification sbn : activeNotifications) {
+                                mIgnoredEssentialKeys.add(sbn.getKey());
+                            }
+                        }
+                        onNotificationUpdated();
+                    }
+                }
+            }
+        };
+        IntentFilter filter = new IntentFilter();
+        filter.addAction(Intent.ACTION_USER_PRESENT);
+        registerReceiver(mUnlockReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
+        
         super.onCreate();
     }
 
@@ -95,6 +119,8 @@ public class NotificationService extends NotificationListenerService
     public void onNotificationPosted(StatusBarNotification sbn){
         if (Constants.CONTEXT == null) return;
         if (DEBUG) Log.d(TAG, "onNotificationPosted: " + sbn.getPackageName());
+        
+        mIgnoredEssentialKeys.remove(sbn.getKey());
         
         if (SettingsManager.isGlyphProgressEnabled()) {
             checkProgressNotification(sbn);
@@ -126,7 +152,11 @@ public class NotificationService extends NotificationListenerService
         
         if (DEBUG) Log.d(TAG, "onNotificationPosted: package:" + packageName + " | channel id: " + packageChannelID + " | importance: " + packageImportance + " | can bypass dnd: " + packageCanBypassDnd);
         
-        if (SettingsManager.isGlyphNotifsAppEnabled(packageName)
+        PowerManager pm = (PowerManager) mContext.getSystemService(Context.POWER_SERVICE);
+        boolean isScreenOn = pm != null && pm.isInteractive();
+        boolean allowByScreenState = !SettingsManager.isGlyphScreenOffOnly() || !isScreenOn;
+        
+        if (allowByScreenState && SettingsManager.isGlyphNotifsAppEnabled(packageName)
                         && !sbn.isOngoing()
                         && !ArrayUtils.contains(Constants.APPS_TO_IGNORE, packageName)
                         && !ArrayUtils.contains(Constants.NOTIFS_TO_IGNORE, packageName + ":" + packageChannelID)
@@ -135,7 +165,7 @@ public class NotificationService extends NotificationListenerService
             AnimationManager.playCsv(mContext, SettingsManager.getGlyphNotifsAnimation());
         }
         
-        if (SettingsManager.isGlyphNotifsAppEssential(packageName)
+        if (allowByScreenState && SettingsManager.isGlyphNotifsAppEssential(packageName)
                         && !sbn.isOngoing()
                         && !ArrayUtils.contains(Constants.APPS_TO_IGNORE, packageName)
                         && !ArrayUtils.contains(Constants.NOTIFS_TO_IGNORE, packageName + ":" + packageChannelID)
@@ -220,6 +250,8 @@ public class NotificationService extends NotificationListenerService
     public void onNotificationRemoved(StatusBarNotification sbn){
         if (DEBUG) Log.d(TAG, "onNotificationRemoved: package:" + sbn.getPackageName() + " | channel id: " + sbn.getNotification().getChannelId());
         
+        mIgnoredEssentialKeys.remove(sbn.getKey());
+
         if (SettingsManager.isGlyphProgressEnabled()) {
             checkProgressNotificationRemoved(sbn);
         }
@@ -258,12 +290,17 @@ public class NotificationService extends NotificationListenerService
                     }
                 } catch (PackageManager.NameNotFoundException e) {}
                 if (DEBUG) Log.d(TAG, "onNotificationUpdated: package:" + packageName + " | channel id: " + packageChannelID + " | importance: " + packageImportance + " | can bypass dnd: " + packageCanBypassDnd);
-                if (SettingsManager.isGlyphNotifsAppEssential(packageName)
+                PowerManager pm = (PowerManager) mContext.getSystemService(Context.POWER_SERVICE);
+                boolean isScreenOn = pm != null && pm.isInteractive();
+                boolean allowByScreenState = !SettingsManager.isGlyphScreenOffOnly() || !isScreenOn;
+                
+                if (allowByScreenState && SettingsManager.isGlyphNotifsAppEssential(packageName)
                                 && !sbn.isOngoing()
                                 && !ArrayUtils.contains(Constants.APPS_TO_IGNORE, packageName)
                                 && !ArrayUtils.contains(Constants.NOTIFS_TO_IGNORE, packageName + ":" + packageChannelID)
                                 && (packageImportance >= NotificationManager.IMPORTANCE_DEFAULT || packageImportance == -1)
-                                && (interruptionFilter <= NotificationManager.INTERRUPTION_FILTER_ALL || packageCanBypassDnd)) {
+                                && (interruptionFilter <= NotificationManager.INTERRUPTION_FILTER_ALL || packageCanBypassDnd)
+                                && !mIgnoredEssentialKeys.contains(sbn.getKey())) {
                     if (DEBUG) Log.d(TAG, "onNotificationUpdated: found essential notification | package:" + packageName);
                     playEssential = true;
                     essentialPackageName = packageName;
